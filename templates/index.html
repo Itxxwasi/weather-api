@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wasi Weather Forecaster</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    /* Sky background animation */
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      color: #333;
+      background: linear-gradient(-45deg, #74ebd5, #9face6, #a1c4fd, #c2e9fb);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .dark-mode {
+      background: #121212 !important;
+      color: #eee;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 50px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .dark-mode .container {
+      background: #1e1e1e;
+    }
+
+    h1, h2, h3 {
+      text-align: center;
+    }
+
+    input, button, select {
+      padding: 12px;
+      font-size: 16px;
+      margin: 5px 0;
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .toggle-btn {
+      margin-bottom: 10px;
+      background: #444;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+
+    .weather-icon {
+      width: 60px;
+      height: 60px;
+    }
+
+    .forecast-box {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .forecast-item {
+      background: #e0f7fa;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    .dark-mode .forecast-item {
+      background: #37474f;
+    }
+
+    .loading {
+      font-style: italic;
+      color: gray;
+    }
+
+    .lang-select {
+      width: auto;
+      margin-bottom: 10px;
+      float: right;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      color: #555;
+    }
+    .dark-mode footer {
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <select class="lang-select" onchange="setLanguage(this.value)">
+      <option value="en">🌐 English</option>
+      <option value="ur">🌐 اردو</option>
+    </select>
+
+    <h1>🌦 Wasi Weather Forecaster</h1>
+    <h2 id="title">🌤️ Weather Information</h2>
+
+    <button class="toggle-btn" onclick="toggleDarkMode()">🌓 Dark Mode</button>
+
+    <input type="text" id="city" placeholder="Enter city (e.g., Lahore)">
+    <button onclick="getWeather()" id="weatherBtn">Get Weather</button>
+    <button onclick="getByLocation()" id="locationBtn">📍 My Location</button>
+
+    <div id="result"></div>
+    <hr>
+    <h3 id="forecastTitle">📅 5-Day Forecast</h3>
+    <button onclick="getForecast()" id="forecastBtn">Get Forecast</button>
+    <div class="forecast-box" id="forecast"></div>
+  </div>
+
+  <footer>
+    🌍 Developed by Mr Wasi – All Rights Reserved
+  </footer>
+
+  <script>
+    let currentLang = "en";
+    const translations = {
+      ur: {
+        "🌤️ Weather Information": "🌤️ موسم کی معلومات",
+        "Enter city (e.g., Lahore)": "شہر کا نام درج کریں (مثلاً لاہور)",
+        "Get Weather": "موسم دیکھیں",
+        "📍 My Location": "📍 میری لوکیشن",
+        "📅 5-Day Forecast": "📅 5 دن کی پیشگوئی",
+        "Get Forecast": "پیشگوئی دیکھیں",
+        "Dark Mode": "ڈارک موڈ",
+        "Loading...": "لوڈ ہو رہا ہے...",
+        "Error fetching data": "ڈیٹا حاصل کرنے میں خرابی",
+      },
+      en: {
+        "🌤️ Weather Information": "🌤️ Weather Information",
+        "Enter city (e.g., Lahore)": "Enter city (e.g., Lahore)",
+        "Get Weather": "Get Weather",
+        "📍 My Location": "📍 My Location",
+        "📅 5-Day Forecast": "📅 5-Day Forecast",
+        "Get Forecast": "Get Forecast",
+        "Dark Mode": "Dark Mode",
+        "Loading...": "Loading...",
+        "Error fetching data": "Error fetching data",
+      }
+    };
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.getElementById("title").innerText = translations[lang]["🌤️ Weather Information"];
+      document.getElementById("city").placeholder = translations[lang]["Enter city (e.g., Lahore)"];
+      document.getElementById("weatherBtn").innerText = translations[lang]["Get Weather"];
+      document.getElementById("locationBtn").innerText = translations[lang]["📍 My Location"];
+      document.getElementById("forecastTitle").innerText = translations[lang]["📅 5-Day Forecast"];
+      document.getElementById("forecastBtn").innerText = translations[lang]["Get Forecast"];
+      document.querySelector(".toggle-btn").innerText = "🌓 " + translations[lang]["Dark Mode"];
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+    }
+
+    async function getWeather() {
+      const city = document.getElementById("city").value;
+      const result = document.getElementById("result");
+      result.innerHTML = `<p class='loading'>${translations[currentLang]["Loading..."]}</p>`;
+
+      const res = await fetch(`/api?city=${encodeURIComponent(city)}&lang=${currentLang}`);
+      const data = await res.json();
+
+      if (data.error) {
+        result.innerHTML = `<p style='color:red;'>❌ ${translations[currentLang]["Error fetching data"]}</p>`;
+        return;
+      }
+
+      result.innerHTML = `
+        <h3>${data.city}, ${data.country}</h3>
+        <img src="https://openweathermap.org/img/wn/${data.icon}@2x.png" class="weather-icon" />
+        <p>${data.description}</p>
+        <p>🌡️ Temp: ${data.temperature}°C</p>
+        <p>Feels Like: ${data.feels_like}°C</p>
+        <p>💧 Humidity: ${data.humidity}%</p>
+        <p>🌬️ Wind: ${data.wind_speed} m/s</p>
+      `;
+    }
+
+    async function getByLocation() {
+      const result = document.getElementById("result");
+      result.innerHTML = `<p class='loading'>${translations[currentLang]["Loading..."]}</p>`;
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+
+        const res = await fetch(`/api/geo?lat=${lat}&lon=${lon}&lang=${currentLang}`);
+        const data = await res.json();
+
+        if (data.error) {
+          result.innerHTML = `<p style='color:red;'>❌ ${translations[currentLang]["Error fetching data"]}</p>`;
+          return;
+        }
+
+        result.innerHTML = `
+          <h3>${data.city}, ${data.country}</h3>
+          <img src="https://openweathermap.org/img/wn/${data.icon}@2x.png" class="weather-icon" />
+          <p>${data.description}</p>
+          <p>🌡️ Temp: ${data.temperature}°C</p>
+          <p>Feels Like: ${data.feels_like}°C</p>
+          <p>💧 Humidity: ${data.humidity}%</p>
+          <p>🌬️ Wind: ${data.wind_speed} m/s</p>
+        `;
+      });
+    }
+
+    async function getForecast() {
+      const city = document.getElementById("city").value;
+      const box = document.getElementById("forecast");
+      box.innerHTML = `<p class='loading'>${translations[currentLang]["Loading..."]}</p>`;
+
+      const res = await fetch(`/api/forecast?city=${encodeURIComponent(city)}&lang=${currentLang}`);
+      const data = await res.json();
+
+      if (data.error) {
+        box.innerHTML = `<p style='color:red;'>❌ ${translations[currentLang]["Error fetching data"]}</p>`;
+        return;
+      }
+
+      let html = "";
+      const uniqueDays = new Set();
+
+      data.forecast.forEach((item) => {
+        const day = item.datetime.split(" ")[0];
+        if (!uniqueDays.has(day)) {
+          uniqueDays.add(day);
+          html += `
+            <div class="forecast-item">
+              <p>${item.datetime.split(" ")[0]}</p>
+              <img src="https://openweathermap.org/img/wn/${item.icon}@2x.png" class="weather-icon" />
+              <p>${item.desc}</p>
+              <p>${item.temp}°C</p>
+            </div>
+          `;
+        }
+      });
+
+      box.innerHTML = html;
+    }
+
+    // Default language
+    setLanguage("en");
+  </script>
+</body>
+</html>
